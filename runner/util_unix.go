@@ -18,7 +18,14 @@ func (e *Engine) killCmd(cmd *exec.Cmd) (pid int, err error) {
 		if err = syscall.Kill(-pid, syscall.SIGINT); err != nil {
 			return
 		}
-		time.Sleep(e.config.killDelay())
+		select {
+		case <-time.After(e.config.killDelay()):
+			// Kill the process after the kill delay has elapsed
+			break
+		case <-cmd.Process.Done():
+			// Process has exited, no need to kill it
+			return pid, nil
+		}
 	}
 	// https://stackoverflow.com/questions/22470193/why-wont-go-kill-a-child-process-correctly
 	err = syscall.Kill(-pid, syscall.SIGKILL)
